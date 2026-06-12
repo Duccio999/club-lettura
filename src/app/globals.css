@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background: #fffaf4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(240, 213, 206, 0.74), transparent 26rem),
+    radial-gradient(circle at 88% 2%, rgba(200, 150, 69, 0.15), transparent 22rem),
+    linear-gradient(180deg, #fffaf4 0%, #f7efe4 100%);
+  color: #2c211d;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-bordeaux focus:ring-offset-2 focus:ring-offset-paper;
+}
+
+.page-shell {
+  @apply mx-auto min-h-screen w-full max-w-5xl px-5 py-6 sm:px-6 sm:py-10;
+}
+
+.panel {
+  @apply rounded-lg border border-rose/80 bg-white/[0.88] shadow-card backdrop-blur;
+}
+
+.field {
+  @apply focus-ring mt-2 w-full rounded-md border border-rose bg-paper px-4 py-3 text-base text-ink placeholder:text-ink/40 transition hover:border-clay/60;
+}
+
+.btn-primary {
+  @apply focus-ring inline-flex items-center justify-center rounded-md bg-bordeaux px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-bordeaux/90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-secondary {
+  @apply focus-ring inline-flex items-center justify-center rounded-md border border-rose bg-white px-4 py-3 text-sm font-bold text-ink shadow-sm transition hover:-translate-y-0.5 hover:border-clay hover:bg-blush/70 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-ghost {
+  @apply focus-ring inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-bold text-bordeaux transition hover:bg-blush;
+}
+
+.eyebrow {
+  @apply text-xs font-bold uppercase tracking-[0.18em] text-moss;
+}
