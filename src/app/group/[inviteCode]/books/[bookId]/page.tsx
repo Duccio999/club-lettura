@@ -13,6 +13,9 @@ import { clearMemberSession, isValidCommentBody, readMemberSession } from "@/lib
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { Book, Comment, Group, Member } from "@/lib/types";
 
+const COMMENTS_PAGE_SIZE = 10;
+const DESCRIPTION_PREVIEW_MIN_LENGTH = 260;
+
 export default function BookDetailPage() {
   const params = useParams<{ inviteCode: string; bookId: string }>();
   const router = useRouter();
@@ -31,6 +34,9 @@ export default function BookDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [commentSearch, setCommentSearch] = useState("");
+  const [visibleCommentCount, setVisibleCommentCount] = useState(COMMENTS_PAGE_SIZE);
 
   const loadComments = useCallback(async (bookId: string, currentMember: Member) => {
     const supabase = getSupabaseBrowserClient();
@@ -47,6 +53,37 @@ export default function BookDetailPage() {
 
     setComments((data || []) as Comment[]);
   }, [inviteCode]);
+
+
+  const descriptionText = book?.description?.trim() || "Descrizione non disponibile.";
+  const canToggleDescription = Boolean(book?.description && book.description.trim().length > DESCRIPTION_PREVIEW_MIN_LENGTH);
+
+  const sortedComments = useMemo(() => {
+    return [...comments].sort((first, second) => {
+      return new Date(second.created_at).getTime() - new Date(first.created_at).getTime();
+    });
+  }, [comments]);
+
+  const cleanCommentSearch = commentSearch.trim().toLocaleLowerCase("it-IT");
+
+  const filteredComments = useMemo(() => {
+    if (!cleanCommentSearch) {
+      return sortedComments;
+    }
+
+    return sortedComments.filter((comment) => {
+      const haystack = `${comment.body} ${comment.member_nickname || ""}`.toLocaleLowerCase("it-IT");
+      return haystack.includes(cleanCommentSearch);
+    });
+  }, [cleanCommentSearch, sortedComments]);
+
+  const visibleComments = filteredComments.slice(0, visibleCommentCount);
+  const hasMoreComments = visibleCommentCount < filteredComments.length;
+  const isSearchingComments = cleanCommentSearch.length > 0;
+
+  useEffect(() => {
+    setVisibleCommentCount(COMMENTS_PAGE_SIZE);
+  }, [cleanCommentSearch, comments.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -175,6 +212,8 @@ export default function BookDetailPage() {
 
       setBody("");
       setIsSpoiler(false);
+      setCommentSearch("");
+      setVisibleCommentCount(COMMENTS_PAGE_SIZE);
       setSuccess("Commento aggiunto.");
       await loadComments(book.id, member);
     } catch (currentError) {
@@ -304,15 +343,30 @@ export default function BookDetailPage() {
           <p className="eyebrow">{group.name}</p>
           <h1 className="mt-2 text-3xl font-black leading-tight text-ink">{book.title}</h1>
           <p className="mt-2 text-base font-bold text-bordeaux">{book.author || "Autore non indicato"}</p>
-          <p className="mt-4 whitespace-pre-line text-sm leading-7 text-ink/70">
-            {book.description || "Descrizione non disponibile."}
-          </p>
+          <div className="mt-4">
+            <p
+              className={`whitespace-pre-line text-sm leading-7 text-ink/70 ${
+                canToggleDescription && !isDescriptionExpanded ? "line-clamp-3 sm:line-clamp-5" : ""
+              }`}
+            >
+              {descriptionText}
+            </p>
+            {canToggleDescription ? (
+              <button
+                type="button"
+                onClick={() => setIsDescriptionExpanded((current) => !current)}
+                className="btn-ghost mt-2 px-0 py-1"
+              >
+                {isDescriptionExpanded ? "Mostra meno" : "Vedi tutta la trama"}
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
 
       <section className="mt-8 space-y-4">
         <div>
-          <h2 className="text-2xl font-black text-ink">Commenti</h2>
+          <h2 className="text-2xl font-black text-ink">Commenti ({comments.length})</h2>
           <p className="mt-1 text-sm text-ink/60">Stai commentando come {member.nickname}.</p>
         </div>
 
@@ -327,7 +381,7 @@ export default function BookDetailPage() {
             id="comment"
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            rows={4}
+            rows={3}
             className="field mt-2 resize-y"
             placeholder="Cosa ne pensi?"
           />
@@ -349,7 +403,40 @@ export default function BookDetailPage() {
           <EmptyState title="Ancora nessun commento" body="Apri tu la discussione con una nota, una domanda o una citazione." />
         ) : (
           <div className="space-y-3">
-            {comments.map((comment) => {
+            <div className="panel space-y-3 p-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-ink">
+                    {isSearchingComments
+                      ? `${filteredComments.length} di ${comments.length} commenti`
+                      : `${comments.length} ${comments.length === 1 ? "commento" : "commenti"}`}
+                  </p>
+                  <p className="text-xs text-ink/55">Dal piu recente al meno recente.</p>
+                </div>
+                {isSearchingComments ? (
+                  <button type="button" onClick={() => setCommentSearch("")} className="btn-ghost px-0 py-1 text-xs">
+                    Cancella ricerca
+                  </button>
+                ) : null}
+              </div>
+              <label htmlFor="commentSearch" className="text-sm font-bold text-ink">
+                Cerca nei commenti
+              </label>
+              <input
+                id="commentSearch"
+                type="search"
+                value={commentSearch}
+                onChange={(event) => setCommentSearch(event.target.value)}
+                className="field mt-2"
+                placeholder="Cerca testo o lettrice..."
+              />
+            </div>
+
+            {filteredComments.length === 0 ? (
+              <EmptyState title="Nessun commento trovato" body="Prova con un'altra parola chiave o cancella la ricerca." />
+            ) : null}
+
+            {visibleComments.map((comment) => {
               const isOwn = comment.member_id === member.id;
               const spoilerVisible = visibleSpoilers[comment.id];
               const isEditing = editingId === comment.id;
@@ -428,6 +515,16 @@ export default function BookDetailPage() {
                 </article>
               );
             })}
+
+            {hasMoreComments ? (
+              <button
+                type="button"
+                onClick={() => setVisibleCommentCount((current) => current + COMMENTS_PAGE_SIZE)}
+                className="btn-secondary w-full"
+              >
+                Mostra altri commenti
+              </button>
+            ) : null}
           </div>
         )}
       </section>
